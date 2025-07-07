@@ -1,0 +1,71 @@
+dataset: # Required.
+  type: BUSI_semi
+  train:
+    data_root: xxx/Breast-BUSI/
+    fold_path: xxx/Breast-BUSI/5_folds/1-fold/
+    ratio_path: xxx/Breast-BUSI/5_folds/1-fold/1_2/
+    data_list: labeled.txt
+    flip: True
+    GaussianBlur: False
+    resize: [513, 513]
+  val:
+    data_root: xxx/Breast-BUSI/
+    fold_path: xxx/Breast-BUSI/5_folds/1-fold/
+    ratio_path: xxx/Breast-BUSI/5_folds/1-fold/1_2/
+    data_list: test.txt
+    resize: [513, 513]
+  batch_size: 4
+  n_sup: 258
+  noise_std: 0.1
+  workers: 4
+  mean: [123.675, 116.28, 103.53]
+  std: [58.395, 57.12, 57.375]
+#  mean: [ 0.485, 0.456, 0.406 ]
+#  std: [ 0.229, 0.224, 0.225 ]
+  ignore_label: 255
+
+trainer: # Required.
+  epochs: 200
+  eval_on: True
+  sup_only_epoch: 10
+  optimizer:
+    type: SGD
+    kwargs:
+      lr: 0.003  # 8GPUs
+      momentum: 0.9
+      weight_decay: 0.0005
+  lr_scheduler:
+    mode: poly
+    kwargs:
+      power: 0.9
+  unsupervised:
+    TTA: False
+    drop_percent: 80
+    apply_aug: cutmix
+    loss_weight: 1
+
+saver:
+  snapshot_dir: checkpoints
+  pretrain: ''
+
+criterion:
+  type: CELoss
+  kwargs:
+    use_weight: False
+
+net: # Required.
+  num_classes: 2
+  sync_bn: True
+  ema_decay: 0.99
+  encoder:
+    type: csc_pa.models.resnet.resnet50
+    kwargs:
+      multi_grid: True
+      zero_init_residual: True
+      fpn: True
+      replace_stride_with_dilation: [False, True, True]  #layer0...1 is fixed, layer2...4
+  decoder:
+    type: csc_pa.models.decoder.dec_deeplabv3_plus
+    kwargs:
+      inner_planes: 256
+      dilations: [12, 24, 36]

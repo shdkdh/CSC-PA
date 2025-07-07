@@ -1,0 +1,94 @@
+dataset: # Required.
+  type: BUSI_semi
+  train:
+    data_root: xxx/Breast-BUSI/
+    data_list: xxx/Breast-BUSI/5_folds/1-fold/1_2/labeled.txt
+    batch_size: 4
+    flip: True
+    rand_resize: [0.5, 2.0]
+#    resize_base_size: 500
+    resize_base_size: [513, 513]
+    crop:
+      type: rand
+      size: [513, 513]
+    #---- 1) strong data augs ----#
+    strong_aug:
+      num_augs: 3                       # !!!!!!!!!!!!!!!!!!!! key param1 (4): 1, 2, 3, 4  !!!!!!!!!!!!!!!!!!!!
+      flag_use_random_num_sampling: True        # !!!!!!!!!!!!!!!!!!!! key param1 (2): True, False  !!!!!!!!!!!!!!!!!!!!
+  val:
+    data_root: xxx/Breast-BUSI/
+    data_list: xxx/Breast-BUSI/5_folds/1-fold/test.txt
+    batch_size: 1
+    resize: [513, 513]
+  n_total: 517
+  n_sup: 258
+  workers: 4
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  ignore_label: 255
+
+# # # # # # # # # # # # # #
+# 2. training params
+# # # # # # # # # # # # # #
+trainer: # Required.
+  epochs: 200
+  eval_on: True
+  sup_only_epoch: 10 # 0, 1
+  evaluate_student: True
+  optimizer:
+    type: SGD
+    kwargs:
+      lr: 0.003  # 0.001:8*2gpus, 4*4gpus; 0.002:8*4gpus.
+      momentum: 0.9
+      weight_decay: 0.0005
+  lr_scheduler:
+    mode: poly
+    kwargs:
+      power: 0.9
+  # # # # # # # # # # # # # #
+  # unsupervised loss
+  # # # # # # # # # # # # # #
+  unsupervised:
+    drop_percent: 80
+    flag_extra_weak: False
+    threshold: 0.95           # ============================================================================= <<abl1-threshold>>: [0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+    loss_weight: 1.0          # ============================================================================= << abl2-weight >> : [1.0, 1.5, 2.0, 2.5, 3.0, 4.0]
+    #------ 2)cutmix augs ------#
+    use_cutmix: True
+    use_cutmix_adaptive: True
+    use_cutmix_trigger_prob: 1.0
+
+# # # # # # # # # # # # # #
+# 3. output files, and loss
+# # # # # # # # # # # # # #
+saver:
+  snapshot_dir: xxx/BUSI/1-fold/1_2/
+  log_dir: xxx/BUSI/CSC-PA/1-fold/1_2/
+  pretrain: ''
+  use_tb: False
+
+criterion:
+  type: CELoss
+  kwargs:
+    use_weight: False
+
+# # # # # # # # # # # # # #
+# 4. models
+# # # # # # # # # # # # # #
+net: # Required.
+  num_classes: 2
+  sync_bn: True
+  ema_decay: 0.99
+  encoder:
+    type: csc_pa.models.resnet.resnet50
+    kwargs:
+      multi_grid: True
+      zero_init_residual: True
+      fpn: True
+      replace_stride_with_dilation: [False, True, True]  #layer0...1 is fixed, layer2...4
+  decoder:
+    type: csc_pa.models.decoder.dec_deeplabv3_plus
+    kwargs:
+      inner_planes: 256
+      dilations: [12, 24, 36]
+
